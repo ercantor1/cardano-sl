@@ -17,7 +17,7 @@ import           Pos.Wallet.Web.ClientTypes.Types (CHash (..), CId (..),
 import           Pos.Wallet.Web.State (WAddressMeta (..))
 
 import           Test.Pos.Core.Arbitrary ()
-import           Universum
+import           Universum ()
 
 instance Arbitrary CHash where
     arbitrary = CHash . B64.encode . B8.pack <$> vectorOf 64 arbitrary

@@ -74,7 +74,7 @@ import           Pos.Chain.Txp as Core (TxAttributes, TxAux, TxIn, TxOut,
 import qualified Pos.Client.Txp.Util as CTxp
 import           Pos.Core (Address, Coin, TxFeePolicy (..), unsafeSubCoin)
 import qualified Pos.Core as Core
-import           Pos.Crypto (EncryptedSecretKey, PassPhrase, ProtocolMagic,
+import           Pos.Crypto (PassPhrase, ProtocolMagic,
                      PublicKey, RedeemSecretKey, SafeSigner (..),
                      ShouldCheckPassphrase (..), Signature (..), hash,
                      redeemToPublic)
@@ -401,11 +401,11 @@ newTransaction
 newTransaction aw@ActiveWallet{..} spendingPassword options accountId payees = do
     tx <- newUnsignedTransaction aw options accountId payees
     case tx of
-         Left e   -> return (Left e)
-         Right (db, unsignedTx, availableUtxo) -> runExceptT $ do
+        Left e   -> return (Left e)
+        Right (db, unsignedTx, availableUtxo) -> runExceptT $ do
 
              -- STEP 1: Perform the signing and forge the final TxAux.
-             mbEsk <- liftIO $ Keystore.lookup
+             mbKey <- liftIO $ Keystore.lookup
                         (WalletIdHdRnd $ accountId ^. hdAccountIdParent)
                         (walletPassive ^. Internal.walletKeystore)
 
@@ -418,7 +418,7 @@ newTransaction aw@ActiveWallet{..} spendingPassword options accountId payees = d
 
              let inputs      = unsignedTxInputs unsignedTx
                  outputs     = unsignedTxOutputs unsignedTx
-                 signAddress = mkSigner spendingPassword mbEsk db
+                 signAddress = mkSigner spendingPassword mbKey db
                  mkTx        = mkStdTx walletProtocolMagic shuffleNE signAddress
 
              -- STEP 3: Creates the @signed@ transaction using data from the
@@ -581,12 +581,13 @@ instance Arbitrary SignTransactionError where
     arbitrary = oneof []
 
 mkSigner :: PassPhrase
-         -> Maybe EncryptedSecretKey
+         -> Maybe Keystore.WalletUserKey
          -> DB
          -> Address
          -> Either SignTransactionError SafeSigner
 mkSigner _ Nothing _ addr = Left (SignTransactionMissingKey addr)
-mkSigner spendingPassword (Just esk) snapshot addr =
+mkSigner _spendingPassword (Just (Keystore.ExternalWalletKey _pk)) _snapshot _addr = error "TODO"
+mkSigner spendingPassword (Just (Keystore.RegularWalletKey esk)) snapshot addr =
     case Getters.lookupCardanoAddress snapshot addr of
         Left _ -> Left (SignTransactionErrorUnknownAddress addr)
         Right hdAddr ->

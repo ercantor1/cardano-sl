@@ -97,11 +97,15 @@ createAddress spendingPassword accId pw = do
          -- 'EncryptedSecretKey' and the 'PassPhrase', and we do not want
          -- these exposed in the acid-state transaction log.
          (AccountIdHdRnd hdAccId) -> do
-             mbEsk <- Keystore.lookup (WalletIdHdRnd (hdAccId ^. hdAccountIdParent))
+             mbKey <- Keystore.lookup (WalletIdHdRnd (hdAccId ^. hdAccountIdParent))
                                       keystore
-             case mbEsk of
-                  Nothing  -> return (Left $ CreateAddressKeystoreNotFound accId)
-                  Just esk -> createHdRndAddress spendingPassword esk hdAccId pw
+             case mbKey of
+                  Nothing ->
+                      return (Left $ CreateAddressKeystoreNotFound accId)
+                  Just (Keystore.RegularWalletKey esk) ->
+                      createHdRndAddress spendingPassword esk hdAccId pw
+                  Just (Keystore.ExternalWalletKey _pk) ->
+                      error "TODO" 
 
 -- | Creates a new 'Address' using the random HD derivation under the hood.
 -- Being this an operation bound not only by the number of available derivation

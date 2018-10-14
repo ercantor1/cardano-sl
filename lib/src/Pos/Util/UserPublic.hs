@@ -16,13 +16,17 @@ module Pos.Util.UserPublic
 
        , UserPublic
        , upKeys
+       , upPath
        , upWallet
        , HasUserPublic(..)
+       , getUPPath
        , initializeUserPublic
+       , isEmptyUserPublic
        , peekUserPublic
        , takeUserPublic
        , writeUserPublic
        , writeUserPublicRelease
+       , writeToFile
        ) where
 
 import qualified Prelude
@@ -97,6 +101,9 @@ data UserPublic = UserPublic
 
 makeLenses ''UserPublic
 
+isEmptyUserPublic :: UserPublic -> Bool
+isEmptyUserPublic up = null (_upKeys up)
+
 class HasUserPublic ctx where
     -- if you're going to mock this TVar, look how it's done for peer state.
     userPublic :: Lens' ctx (TVar UserPublic)
@@ -120,6 +127,9 @@ lockFilePath = (<> ".lock")
 -- will result in error.
 canWrite :: UserPublic -> Bool
 canWrite up = up ^. upLock . to isJust
+
+getUPPath :: UserPublic -> FilePath
+getUPPath = flip (^.) upPath
 
 instance Default UserPublic where
     def = UserPublic [] Nothing "" Nothing
@@ -210,7 +220,7 @@ takeUserPublic path = do
 writeUserPublic :: (MonadIO m) => UserPublic -> m ()
 writeUserPublic up
     | canWrite up = liftIO $ throwM $ KeyError Public AlreadyLocked
-    | otherwise   = liftIO $ withFileLock (lockFilePath $ up ^. upPath) Exclusive $ const $ writeRaw up
+    | otherwise   = liftIO $ withFileLock (lockFilePath $ up ^. upPath) Exclusive $ const $ writeToFile up
 
 -- | Writes user public and releases the lock. UserPublic can't be
 -- used after this function call anymore.
@@ -218,14 +228,14 @@ writeUserPublicRelease :: (MonadIO m, MonadThrow m) => UserPublic -> m ()
 writeUserPublicRelease up
     | not (canWrite up) = throwM $ KeyError Public NotWritable
     | otherwise = liftIO $ do
-        writeRaw up
+        writeToFile up
         case (up ^. upLock) of
             Nothing   -> throwM $ KeyError Public IncorrectLock
             Just lock -> unlockFile lock
 
 -- | Helper for writing public to file
-writeRaw :: UserPublic -> IO ()
-writeRaw up = do
+writeToFile :: UserPublic -> IO ()
+writeToFile up = do
     let path = up ^. upPath
     -- On POSIX platforms, openBinaryTempFile guarantees that the file
     -- will be created with mode 600.

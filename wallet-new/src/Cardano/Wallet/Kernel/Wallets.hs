@@ -153,7 +153,7 @@ createHdWallet pw mnemonic spendingPassword assuranceLevel walletName = do
     -- (We got interrupted before inserting it) causing a system panic.
     -- We can fix this properly as part of [CBR-404].
     let newRootId = eskToHdRootId esk
-    Keystore.insert (WalletIdHdRnd newRootId) esk (pw ^. walletKeystore)
+    Keystore.insert (Keystore.RegularWalletKey esk) (pw ^. walletKeystore)
 
     -- STEP 2.5: Generate the fresh Cardano Address which will be used for the
     -- companion 'HdAddress'
@@ -342,8 +342,8 @@ updatePassword pw hdRootId oldPassword newPassword = do
     -- STEP 1: Lookup the key from the keystore
     mbKey <- Keystore.lookup wId keystore
     case mbKey of
-         Nothing -> return $ Left $ UpdateWalletPasswordKeyNotFound hdRootId
-         Just oldKey -> do
+        Nothing -> return $ Left $ UpdateWalletPasswordKeyNotFound hdRootId
+        Just (Keystore.RegularWalletKey oldKey) -> do
 
              -- Predicate to check that the 2 password matches. It gets passed
              -- down to the 'Keystore' to ensure atomicity.
@@ -399,3 +399,5 @@ updatePassword pw hdRootId oldPassword newPassword = do
                                     Left e ->
                                         return $ Left (UpdateWalletPasswordUnknownHdRoot e)
                                     Right (db, hdRoot') -> return $ Right (db, hdRoot')
+        Just (Keystore.ExternalWalletKey _pk) ->
+            error "TODO"

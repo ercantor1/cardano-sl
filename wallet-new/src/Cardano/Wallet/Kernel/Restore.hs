@@ -182,7 +182,7 @@ restoreKnownWallet pw rootId = do
         -- Start a new restoration of a seemingly up-to-date wallet.
         Nothing -> Keystore.lookup wId (pw ^. walletKeystore) >>= \case
             Nothing  -> return () -- TODO (@mn): raise an error
-            Just esk -> do
+            Just (Keystore.RegularWalletKey esk) -> do
                 let prefilter = mkPrefilter pw wId esk
                     wkey = (wId, keyToWalletDecrCredentials (KeyForRegular esk))
 
@@ -202,6 +202,8 @@ restoreKnownWallet pw rootId = do
                                     update (pw ^. wallets) $ ResetAllHdWalletAccounts rootId tgt utxos
                                     beginRestoration pw wId prefilter root Nothing tgt restart
                       in restart
+            Just (Keystore.ExternalWalletKey _pk) ->
+                error "TODO"
 
 -- | Take a wallet that is in an incomplete state but not restoring, and
 -- start up a restoration task for it. This is used to bring up restoration
@@ -218,7 +220,7 @@ continueRestoration pw root cur tgt = do
             -- TODO (@mn): raise an error, trying to continue
             -- restoration of an unknown wallet
             return ()
-        Just esk -> do
+        Just (Keystore.RegularWalletKey esk) -> do
             let prefilter = mkPrefilter pw wId esk
                 wkey      = (wId, keyToWalletDecrCredentials (KeyForRegular esk))
                 restart   = do
@@ -234,6 +236,8 @@ continueRestoration pw root cur tgt = do
                           update (pw ^. wallets) $ ResetAllHdWalletAccounts (root ^. HD.hdRootId) tgt' utxos
                           beginRestoration pw wId prefilter root Nothing tgt' restart
             beginRestoration pw wId prefilter root cur tgt restart
+        Just (Keystore.ExternalWalletKey _pk) ->
+            error "TODO"
 
 -- | Register and start up a background restoration task.
 beginRestoration  :: Kernel.PassiveWallet

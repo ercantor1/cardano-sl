@@ -37,7 +37,7 @@ module Pos.Util.UserSecret
        , UserSecretDecodingError (..)
        , ensureModeIs600
        -- * Internal API
-       , writeRaw
+       , writeToFile
        ) where
 
 import qualified Prelude
@@ -293,7 +293,7 @@ takeUserSecret path = do
 writeUserSecret :: (MonadIO m) => UserSecret -> m ()
 writeUserSecret u
     | canWrite u = liftIO $ throwM $ KeyError Secret AlreadyLocked
-    | otherwise = liftIO $ withFileLock (lockFilePath $ u ^. usPath) Exclusive $ const $ writeRaw u
+    | otherwise = liftIO $ withFileLock (lockFilePath $ u ^. usPath) Exclusive $ const $ writeToFile u
 
 -- | Writes user secret and releases the lock. UserSecret can't be
 -- used after this function call anymore.
@@ -301,14 +301,14 @@ writeUserSecretRelease :: (MonadIO m, MonadThrow m) => UserSecret -> m ()
 writeUserSecretRelease u
     | not (canWrite u) = throwM $ KeyError Secret NotWritable
     | otherwise = liftIO $ do
-        writeRaw u
+        writeToFile u
         case (u ^. usLock) of
             Nothing   -> throwM $ KeyError Secret IncorrectLock
             Just lock -> unlockFile lock
 
 -- | Helper for writing secret to file
-writeRaw :: UserSecret -> IO ()
-writeRaw u = do
+writeToFile :: UserSecret -> IO ()
+writeToFile u = do
     let path = u ^. usPath
     -- On POSIX platforms, openBinaryTempFile guarantees that the file
     -- will be created with mode 600.

@@ -78,15 +78,17 @@ createAccount spendingPassword accountName walletId pw = do
     let keystore = pw ^. walletKeystore
     case walletId of
          WalletIdHdRnd hdRootId -> do
-             mbEsk <- Keystore.lookup (WalletIdHdRnd hdRootId) keystore
-             case mbEsk of
+             mbKey <- Keystore.lookup (WalletIdHdRnd hdRootId) keystore
+             case mbKey of
                   Nothing  -> return (Left $ CreateAccountKeystoreNotFound walletId)
-                  Just esk ->
+                  Just (Keystore.RegularWalletKey esk) ->
                       createHdRndAccount spendingPassword
                                          accountName
                                          esk
                                          hdRootId
                                          pw
+                  Just (Keystore.ExternalWalletKey _pk) ->
+                      error "TODO"
 
 -- | Creates a new 'Account' using the random HD derivation under the hood.
 -- This code follows the same pattern of 'createHdRndAddress', but the two

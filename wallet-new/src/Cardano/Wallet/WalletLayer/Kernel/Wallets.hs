@@ -102,7 +102,7 @@ createWallet wallet newWalletRequest = liftIO $ do
             wId    = WalletIdHdRnd rootId
 
         -- Insert the 'EncryptedSecretKey' into the 'Keystore'
-        liftIO $ Keystore.insert wId esk (wallet ^. walletKeystore)
+        liftIO $ Keystore.insert (Keystore.RegularWalletKey esk) (wallet ^. walletKeystore)
 
         -- Synchronously restore the wallet balance, and begin to
         -- asynchronously reconstruct the wallet's history.

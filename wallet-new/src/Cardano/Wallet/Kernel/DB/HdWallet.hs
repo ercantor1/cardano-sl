@@ -93,6 +93,7 @@ module Cardano.Wallet.Kernel.DB.HdWallet (
   , assumeHdAccountExists
     -- * General-utility functions
   , eskToHdRootId
+  , pkToHdRootId
   ) where
 
 import           Universum hiding ((:|))
@@ -208,6 +209,8 @@ deriveSafeCopy 1 'base ''HasSpendingPassword
 eskToHdRootId :: Core.EncryptedSecretKey -> HdRootId
 eskToHdRootId = HdRootId . InDb . Core.makePubKeyAddressBoot . Core.encToPublic
 
+pkToHdRootId :: Core.PublicKey -> HdRootId
+pkToHdRootId = HdRootId . InDb . Core.makePubKeyAddressBoot
 
 {-------------------------------------------------------------------------------
   HD wallets

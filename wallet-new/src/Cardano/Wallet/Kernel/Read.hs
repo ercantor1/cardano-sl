@@ -45,10 +45,11 @@ getWalletCredentials pw = do
     return creds
   where
     aux :: WalletId
-        -> Maybe EncryptedSecretKey
+        -> Maybe Keystore.WalletUserKey
         -> Either (WalletId, EncryptedSecretKey) WalletId
-    aux walletId Nothing    = Right walletId
-    aux walletId (Just esk) = Left (walletId, esk)
+    aux walletId Nothing = Right walletId
+    aux walletId (Just (Keystore.RegularWalletKey esk)) = Left (walletId, esk)
+    aux _walletId (Just (Keystore.ExternalWalletKey _pk)) = error "TODO"
 
     errMissing :: [WalletId] -> Text
     errMissing = sformat ("Root key missing for " % listJson)
