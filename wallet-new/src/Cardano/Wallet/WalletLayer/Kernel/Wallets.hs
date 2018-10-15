@@ -61,6 +61,10 @@ createWallet wallet newWalletRequest = liftIO $ do
             case newwalOperation of
                 V1.RestoreWallet -> restore newWallet now
                 V1.CreateWallet  -> create  newWallet now
+        CreateExternalWallet newExtWallet@V1.NewExternalWallet{..} ->
+            case newewalOperation of
+                V1.RestoreWallet -> restoreExternal newExtWallet now
+                V1.CreateWallet  -> createExternal  newExtWallet now
         ImportWalletFromESK esk mbSpendingPassword ->
             restoreFromESK esk
                            (spendingPassword mbSpendingPassword)
@@ -78,6 +82,19 @@ createWallet wallet newWalletRequest = liftIO $ do
                                       (HD.WalletName newwalName)
       return (mkRoot newwalName newwalAssuranceLevel now root)
 
+    createExternal :: V1.NewExternalWallet
+                   -> Timestamp
+                   -> IO (Either CreateWalletError V1.Wallet)
+    createExternal V1.NewExternalWallet{..} now = runExceptT $ do
+        rootPK <- withExceptT CreateWalletInvalidRootPK $ ExceptT $
+            pure $ V1.mkPublicKeyFromBase58 newewalRootPK
+        root <- withExceptT CreateWalletError $ ExceptT $
+            Kernel.createExternalHdWallet wallet
+                                          rootPK
+                                          (fromAssuranceLevel newewalAssuranceLevel)
+                                          (HD.WalletName newewalName)
+        return (mkRoot newewalName newewalAssuranceLevel now root)
+
     restore :: V1.NewWallet
             -> Timestamp
             -> IO (Either CreateWalletError V1.Wallet)
@@ -90,6 +107,11 @@ createWallet wallet newWalletRequest = liftIO $ do
                        now
                        newwalName
                        (fromAssuranceLevel newwalAssuranceLevel)
+
+    restoreExternal :: V1.NewExternalWallet
+                    -> Timestamp
+                    -> IO (Either CreateWalletError V1.Wallet)
+    restoreExternal = error "TODO"
 
     restoreFromESK :: EncryptedSecretKey
                    -> PassPhrase

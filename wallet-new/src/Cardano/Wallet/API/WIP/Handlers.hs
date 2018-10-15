@@ -37,8 +37,11 @@ checkExternalWallet _pwl _encodedRootPK =
 newExternalWallet :: PassiveWalletLayer IO
                   -> NewExternalWallet
                   -> Handler (WalletResponse Wallet)
-newExternalWallet _pwl _newExtWallet =
-    error "[CHW-80], Cardano Hardware Wallet feature, new external wallet, unimplemented yet."
+newExternalWallet pwl newExternalWalletRequest = do
+    res <- liftIO $ WalletLayer.createWallet pwl (WalletLayer.CreateExternalWallet newExternalWalletRequest)
+    case res of
+        Left err     -> throwM err
+        Right wallet -> return $ single wallet
 
 deleteExternalWallet :: PassiveWalletLayer IO
                      -> PublicKeyAsBase58

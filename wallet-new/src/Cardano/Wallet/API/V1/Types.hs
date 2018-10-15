@@ -43,6 +43,7 @@ module Cardano.Wallet.API.V1.Types (
   , PublicKeyAsBase58
   , mkPublicKeyAsBase58
   , mkPublicKeyFromBase58
+  , Base58PublicKeyError (..)
   , NewExternalWallet (..)
   , WalletAndTxHistory (..)
   -- * Addresses

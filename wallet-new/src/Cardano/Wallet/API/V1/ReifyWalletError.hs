@@ -136,7 +136,8 @@ getAccountsError e = case e of
         V1.WalletNotFound
 
 createWalletError :: CreateWalletError -> V1.WalletError
-createWalletError (CreateWalletError e) = case e of
+createWalletError err = case err of
+    (CreateWalletError e) -> case e of
         (Kernel.CreateWalletFailed e') -> case e' of
             (HD.CreateHdRootExists rootId) ->
                 V1.WalletAlreadyExists $ toRootId rootId
@@ -147,6 +148,9 @@ createWalletError (CreateWalletError e) = case e of
         Kernel.CreateWalletDefaultAddressDerivationFailed ->
                 V1.CannotCreateAddress $
                     T.pack "CreateWalletDefaultAddressDerivationFailed"
+
+    (CreateWalletInvalidRootPK pkError) ->
+        V1.InvalidPublicKey (sformat build pkError)
 
 getWalletError :: GetWalletError -> V1.WalletError
 getWalletError e = case e of
