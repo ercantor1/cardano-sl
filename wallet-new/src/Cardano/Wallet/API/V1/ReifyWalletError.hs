@@ -191,10 +191,14 @@ updateWalletPasswordError e = case e of
 deleteWalletError :: DeleteWalletError -> V1.WalletError
 deleteWalletError e = case e of
     (DeleteWalletWalletIdDecodingFailed _txt) ->
-            V1.WalletNotFound
+        V1.WalletNotFound
 
     (DeleteWalletError (HD.UnknownHdRoot _rootId)) ->
-            V1.WalletNotFound
+        V1.WalletNotFound
+
+    (DeleteWalletInvalidRootPK pkError) ->
+        V1.InvalidPublicKey (sformat build pkError)
+
 
 importWalletError :: ImportWalletError -> V1.WalletError
 importWalletError e = case e of

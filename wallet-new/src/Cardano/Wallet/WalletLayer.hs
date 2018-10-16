@@ -47,7 +47,7 @@ import           Cardano.Wallet.API.Response (SliceOf (..), WalletResponse)
 import           Cardano.Wallet.API.V1.Types (Account, AccountBalance,
                      AccountIndex, AccountUpdate, Address, Base58PublicKeyError (..), ForceNtpCheck,
                      NewAccount, NewAddress, NewWallet, NewExternalWallet, NodeInfo, NodeSettings,
-                     PasswordUpdate, Payment, Redemption, SignedTransaction,
+                     PasswordUpdate, Payment, PublicKeyAsBase58, Redemption, SignedTransaction,
                      SpendingPassword, Transaction, UnsignedTransaction,
                      V1 (..), Wallet, WalletAddress, WalletId, WalletImport,
                      WalletUpdate)
@@ -157,6 +157,7 @@ instance Buildable UpdateWalletPasswordError where
 data DeleteWalletError =
       DeleteWalletWalletIdDecodingFailed Text
     | DeleteWalletError Kernel.UnknownHdRoot
+    | DeleteWalletInvalidRootPK Base58PublicKeyError
 
 -- | Unsound show instance needed for the 'Exception' instance.
 instance Show DeleteWalletError where
@@ -169,6 +170,8 @@ instance Buildable DeleteWalletError where
         bprint ("DeleteWalletWalletIdDecodingFailed " % build) txt
     build (DeleteWalletError kernelError) =
         bprint ("DeleteWalletError " % build) kernelError
+    build (DeleteWalletInvalidRootPK pkError) =
+        bprint ("DeleteWalletInvalidRootPK " % build) pkError
 
 data GetUtxosError =
       GetUtxosWalletIdDecodingFailed Text
@@ -402,6 +405,7 @@ data PassiveWalletLayer m = PassiveWalletLayer
                            -> PasswordUpdate
                            -> m (Either UpdateWalletPasswordError Wallet)
     , deleteWallet         :: WalletId -> m (Either DeleteWalletError ())
+    , deleteExternalWallet :: PublicKeyAsBase58 -> m (Either DeleteWalletError ())
     , getUtxos             :: WalletId
                            -> m (Either GetUtxosError [(Account, Utxo)])
     -- accounts

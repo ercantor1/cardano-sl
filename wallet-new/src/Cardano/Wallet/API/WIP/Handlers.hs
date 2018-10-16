@@ -46,8 +46,11 @@ newExternalWallet pwl newExternalWalletRequest = do
 deleteExternalWallet :: PassiveWalletLayer IO
                      -> PublicKeyAsBase58
                      -> Handler NoContent
-deleteExternalWallet _pwl _encodedRootPK =
-    error "[CHW-106], Cardano Hardware Wallet feature, , delete external wallet, unimplemented yet."
+deleteExternalWallet pwl encodedRootPK = do
+    res <- liftIO $ WalletLayer.deleteExternalWallet pwl encodedRootPK
+    case res of
+         Left err -> throwM err
+         Right () -> return NoContent
 
 -- | Creates new unsigned transaction.
 --

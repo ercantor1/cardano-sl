@@ -4,6 +4,7 @@ module Cardano.Wallet.WalletLayer.Kernel.Wallets (
     , updateWallet
     , updateWalletPassword
     , deleteWallet
+    , deleteExternalWallet
     , getWallet
     , getWallets
     , getWalletUtxos
@@ -231,6 +232,20 @@ deleteWallet wallet wId = runExceptT $ do
     withExceptT DeleteWalletError $ ExceptT $ liftIO $ do
       Kernel.removeRestoration wallet (WalletIdHdRnd rootId)
       Kernel.deleteHdWallet wallet rootId
+
+-- | Deletes an external wallet, together with every account & addresses belonging to it.
+-- If this wallet was restoring, then the relevant async worker is correctly canceled.
+deleteExternalWallet :: MonadIO m
+                     => Kernel.PassiveWallet
+                     -> V1.PublicKeyAsBase58
+                     -> m (Either DeleteWalletError ())
+deleteExternalWallet wallet encodedRootPK = runExceptT $ do
+    rootPK <- withExceptT DeleteWalletInvalidRootPK $ ExceptT $
+        pure $ V1.mkPublicKeyFromBase58 encodedRootPK
+    let rootId  = HD.pkToHdRootId rootPK
+    withExceptT DeleteWalletError $ ExceptT $ liftIO $ do
+        Kernel.removeRestoration wallet (WalletIdHdRnd rootId)
+        Kernel.deleteHdWallet wallet rootId
 
 -- | Gets a specific wallet.
 getWallet :: MonadIO m
