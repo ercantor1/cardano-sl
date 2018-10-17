@@ -45,12 +45,13 @@ import           Cardano.Wallet.API.Request.Filter (FilterOperations (..))
 import           Cardano.Wallet.API.Request.Sort (SortOperations (..))
 import           Cardano.Wallet.API.Response (SliceOf (..), WalletResponse)
 import           Cardano.Wallet.API.V1.Types (Account, AccountBalance,
-                     AccountIndex, AccountUpdate, Address, Base58PublicKeyError (..), ForceNtpCheck,
-                     NewAccount, NewAddress, NewWallet, NewExternalWallet, NodeInfo, NodeSettings,
-                     PasswordUpdate, Payment, PublicKeyAsBase58, Redemption, SignedTransaction,
-                     SpendingPassword, Transaction, UnsignedTransaction,
-                     V1 (..), Wallet, WalletAddress, WalletId, WalletImport,
-                     WalletUpdate)
+                     AccountIndex, AccountUpdate, Address,
+                     Base58PublicKeyError (..), ForceNtpCheck, NewAccount,
+                     NewAddress, NewExternalWallet, NewWallet, NodeInfo,
+                     NodeSettings, PasswordUpdate, Payment, PublicKeyAsBase58,
+                     Redemption, SignedTransaction, SpendingPassword,
+                     Transaction, UnsignedTransaction, V1 (..), Wallet,
+                     WalletAddress, WalletId, WalletImport, WalletUpdate)
 import qualified Cardano.Wallet.Kernel.Accounts as Kernel
 import qualified Cardano.Wallet.Kernel.Addresses as Kernel
 import           Cardano.Wallet.Kernel.CoinSelection.FromGeneric

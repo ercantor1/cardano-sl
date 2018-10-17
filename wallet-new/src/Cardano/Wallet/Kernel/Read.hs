@@ -16,7 +16,6 @@ import           Data.Acid.Advanced (query')
 import           Formatting (sformat, (%))
 import           Serokell.Util (listJson)
 
-import           Pos.Crypto (EncryptedSecretKey)
 import           Pos.Util.Wlog (Severity (..))
 
 import           Cardano.Wallet.Kernel.DB.AcidState (DB, Snapshot (..))
@@ -35,7 +34,7 @@ getWalletSnapshot pw = query' (pw ^. wallets) Snapshot
 -- indicates a bug somewhere, but there is not much we can do about it here,
 -- since this runs in the context of applying a block.
 getWalletCredentials :: PassiveWallet
-                     -> IO [(WalletId, EncryptedSecretKey)]
+                     -> IO [(WalletId, Keystore.WalletUserKey)]
 getWalletCredentials pw = do
     snapshot         <- getWalletSnapshot pw
     (creds, missing) <- fmap partitionEithers $
@@ -46,10 +45,9 @@ getWalletCredentials pw = do
   where
     aux :: WalletId
         -> Maybe Keystore.WalletUserKey
-        -> Either (WalletId, EncryptedSecretKey) WalletId
-    aux walletId Nothing = Right walletId
-    aux walletId (Just (Keystore.RegularWalletKey esk)) = Left (walletId, esk)
-    aux _walletId (Just (Keystore.ExternalWalletKey _pk)) = error "TODO"
+        -> Either (WalletId, Keystore.WalletUserKey) WalletId
+    aux walletId Nothing              = Right walletId
+    aux walletId (Just walletUserKey) = Left (walletId, walletUserKey)
 
     errMissing :: [WalletId] -> Text
     errMissing = sformat ("Root key missing for " % listJson)

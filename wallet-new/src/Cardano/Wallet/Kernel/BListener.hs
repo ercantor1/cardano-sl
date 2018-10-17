@@ -27,7 +27,6 @@ import           Pos.Chain.Block (HeaderHash)
 import           Pos.Chain.Genesis (Config (..))
 import           Pos.Chain.Txp (TxId)
 import           Pos.Core.Chrono (OldestFirst (..))
-import           Pos.Crypto (EncryptedSecretKey)
 import           Pos.DB.Block (getBlund)
 import           Pos.Util.Log (Severity (..))
 
@@ -42,6 +41,7 @@ import           Cardano.Wallet.Kernel.DB.Spec.Pending (Pending)
 import           Cardano.Wallet.Kernel.DB.Spec.Update (ApplyBlockFailed (..))
 import           Cardano.Wallet.Kernel.DB.TxMeta.Types
 import           Cardano.Wallet.Kernel.Internal
+import           Cardano.Wallet.Kernel.Keystore (WalletUserKey (..))
 import qualified Cardano.Wallet.Kernel.NodeStateAdaptor as Node
 import           Cardano.Wallet.Kernel.PrefilterTx (PrefilteredBlock (..),
                      prefilterBlock)
@@ -67,7 +67,7 @@ prefilterBlock' :: PassiveWallet
 prefilterBlock' pw b = do
     aux <$> getWalletCredentials pw
   where
-    aux :: [(WalletId, EncryptedSecretKey)]
+    aux :: [(WalletId, WalletUserKey)]
         -> ((BlockContext, Map HdAccountId PrefilteredBlock), [TxMeta])
     aux ws =
       let (conMap, conMeta) = mconcat $ map (uncurry (prefilterBlock b)) ws

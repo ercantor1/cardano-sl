@@ -26,16 +26,17 @@ import           Data.Acid.Advanced (update')
 
 import           Pos.Core (Address, Timestamp)
 import           Pos.Crypto (EncryptedSecretKey, HDPassphrase, PassPhrase,
-                     PublicKey,
-                     changeEncPassphrase, checkPassMatches, emptyPassphrase,
-                     firstHardened, safeDeterministicKeyGen)
+                     PublicKey, changeEncPassphrase, checkPassMatches,
+                     emptyPassphrase, firstHardened, safeDeterministicKeyGen)
 
 import           Cardano.Wallet.Kernel.Addresses (newHdAddress)
 import           Cardano.Wallet.Kernel.BIP39 (Mnemonic)
 import qualified Cardano.Wallet.Kernel.BIP39 as BIP39
-import           Cardano.Wallet.Kernel.DB.AcidState (CreateHdWallet (..), CreateExternalHdWallet (..),
-                     DeleteHdRoot (..), RestoreHdWallet,
-                     UpdateHdRootPassword (..), UpdateHdWallet (..))
+import           Cardano.Wallet.Kernel.DB.AcidState
+                     (CreateExternalHdWallet (..), CreateHdWallet (..),
+                     DeleteHdRoot (..), RestoreExternalHdWallet,
+                     RestoreHdWallet, UpdateHdRootPassword (..),
+                     UpdateHdWallet (..))
 import           Cardano.Wallet.Kernel.DB.HdWallet (AssuranceLevel,
                      HdAccountId (..), HdAccountIx (..), HdAddress,
                      HdAddressId (..), HdAddressIx (..), HdRoot, HdRootId,
@@ -90,6 +91,8 @@ data UpdateWalletPasswordError =
       -- ^ When trying to update the password inside the keystore, the
       -- previous 'PassPhrase' didn't match or it was deleted, which means
       -- this operation is not valid anymore.
+    | UpdateWalletPasswordUnableForExternalWallet
+      -- External wallets don't have spending password by definition.
 
 instance Arbitrary UpdateWalletPasswordError where
     arbitrary = oneof []
@@ -103,6 +106,8 @@ instance Buildable UpdateWalletPasswordError where
         bprint ("UpdateWalletPasswordUnknownHdRoot " % F.build) uRoot
     build (UpdateWalletPasswordKeystoreChangedInTheMeantime uRoot) =
         bprint ("UpdateWalletPasswordKeystoreChangedInTheMeantime " % F.build) uRoot
+    build (UpdateWalletPasswordUnableForExternalWallet) =
+        bprint ("UpdateWalletPasswordUnableForExternalWallet")
 
 instance Show UpdateWalletPasswordError where
     show = formatToString build
@@ -309,7 +314,7 @@ createExternalWalletHdRnd :: PassiveWallet
                           -> PublicKey
                           -> (  HdRoot
                              -> HdAccountId
-                             -> Either CreateExternalHdWallet RestoreHdWallet
+                             -> Either CreateExternalHdWallet RestoreExternalHdWallet
                              )
                           -> IO (Either HD.CreateHdRootError HdRoot)
 createExternalWalletHdRnd pw name assuranceLevel pk createExtWallet = do
@@ -413,6 +418,8 @@ updatePassword pw hdRootId oldPassword newPassword = do
     mbKey <- Keystore.lookup wId keystore
     case mbKey of
         Nothing -> return $ Left $ UpdateWalletPasswordKeyNotFound hdRootId
+        Just (Keystore.ExternalWalletKey _pk) ->
+            return $ Left $ UpdateWalletPasswordUnableForExternalWallet
         Just (Keystore.RegularWalletKey oldKey) -> do
 
              -- Predicate to check that the 2 password matches. It gets passed
@@ -469,5 +476,3 @@ updatePassword pw hdRootId oldPassword newPassword = do
                                     Left e ->
                                         return $ Left (UpdateWalletPasswordUnknownHdRoot e)
                                     Right (db, hdRoot') -> return $ Right (db, hdRoot')
-        Just (Keystore.ExternalWalletKey _pk) ->
-            error "TODO"

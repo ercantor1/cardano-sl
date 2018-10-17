@@ -72,6 +72,8 @@ createAddressErrorKernel e = case e of
         V1.CannotCreateAddress (sformat build e)
     (Kernel.CreateAddressHdRndAddressSpaceSaturated _accId) ->
         V1.CannotCreateAddress (sformat build e)
+    (Kernel.CreateAddressUnableForExternalWallet _accId) ->
+        V1.CannotCreateAddress (sformat build e)
 
 unknownHdAccount :: HD.UnknownHdAccount -> V1.WalletError
 unknownHdAccount e = case e of
@@ -183,10 +185,13 @@ updateWalletPasswordError e = case e of
             V1.WalletNotFound
 
         (Kernel.UpdateWalletPasswordUnknownHdRoot (HD.UnknownHdRoot _rootId)) ->
-                V1.WalletNotFound
+            V1.WalletNotFound
 
         ex@(Kernel.UpdateWalletPasswordKeystoreChangedInTheMeantime _rootId) ->
-                V1.UnknownError (sformat build ex)
+            V1.UnknownError (sformat build ex)
+
+        ex@Kernel.UpdateWalletPasswordUnableForExternalWallet ->
+            V1.UnknownError (sformat build ex)
 
 deleteWalletError :: DeleteWalletError -> V1.WalletError
 deleteWalletError e = case e of
@@ -310,6 +315,8 @@ newTransactionError e = case e of
             V1.AddressNotFound
         (Kernel.SignTransactionErrorNotOwned addr) ->
             V1.TxSafeSignerNotFound (V1 addr)
+        ex@Kernel.SignTransactionUnableForExternalWallet ->
+            V1.UnknownError (sformat build ex)
 
     Kernel.NewTransactionInvalidTxIn ->
             V1.SignedTxSubmitError "NewTransactionInvalidTxIn"

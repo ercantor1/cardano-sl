@@ -231,13 +231,13 @@ restore pw forced metadata = do
         wId = WalletIdHdRnd (metadata ^. mmHdRootId)
     mbKey <- Keystore.lookup wId keystore
     case mbKey of
-        Just (Keystore.RegularWalletKey esk) -> do
+        Just walletUserKey -> do
             res <- restoreWallet pw
                                  (metadata ^. mmHasSpendingPassword)
                                  (metadata ^. mmDefaultAddress)
                                  (metadata ^. mmWalletName)
                                  (metadata ^. mmAssuranceLevel)
-                                 esk
+                                 walletUserKey
             case res of
                  Right (restoredRoot, balance) -> do
                      let msg = "Migrating " % F.build
@@ -252,8 +252,6 @@ restore pw forced metadata = do
                         True  -> do
                             logMsg Error ("Migration failed! " <> msg <> " You are advised to delete the newly created db and try again.")
                             exitFailure
-        Just (Keystore.ExternalWalletKey _pk) ->
-            error "TODO"
         Nothing -> do
             let errMsg = "Couldn't migrate " % F.build
                        % " : the key was not found in the keystore."

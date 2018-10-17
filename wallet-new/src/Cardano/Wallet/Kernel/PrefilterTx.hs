@@ -46,6 +46,7 @@ import           Cardano.Wallet.Kernel.DB.Resolved (ResolvedBlock,
                      ResolvedInput, ResolvedTx, rbContext, rbTxs,
                      resolvedToTxMeta, rtxInputs, rtxOutputs)
 import           Cardano.Wallet.Kernel.DB.TxMeta.Types
+import           Cardano.Wallet.Kernel.Keystore (WalletUserKey (..))
 import           Cardano.Wallet.Kernel.Types (WalletId (..))
 import           Cardano.Wallet.Kernel.Util.Core
 
@@ -270,16 +271,18 @@ extendWithSummary (onlyOurInps,onlyOurOuts) utxoWithAddrId
 --   Returns prefiltered blocks indexed by HdAccountId.
 prefilterBlock :: ResolvedBlock
                -> WalletId
-               -> EncryptedSecretKey
+               -> WalletUserKey
                -> (Map HdAccountId PrefilteredBlock, [TxMeta])
-prefilterBlock block wid esk =
+prefilterBlock block wid walletUserKey =
       (Map.fromList
     $ map (mkPrefBlock (block ^. rbContext) inpAll outAll)
     $ Set.toList accountIds
     , metas)
   where
     wdc :: WalletDecrCredentials
-    wdc  = keyToWalletDecrCredentials $ KeyForRegular esk
+    wdc = case walletUserKey of
+              RegularWalletKey esk -> keyToWalletDecrCredentials $ KeyForRegular esk
+              ExternalWalletKey pk -> keyToWalletDecrCredentials $ KeyForExternal pk
     wKey = (wid, wdc)
 
     inps :: [Map HdAccountId (Set TxIn)]

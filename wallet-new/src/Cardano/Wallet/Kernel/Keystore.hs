@@ -41,11 +41,11 @@ import           System.IO (hClose, openTempFile)
 
 import           Pos.Crypto (EncryptedSecretKey, PublicKey, hash)
 import           Pos.Util.UserPublic (UserPublic, getUPPath, isEmptyUserPublic,
-                     takeUserPublic, upPath, upKeys, writeUserPublicRelease)
+                     takeUserPublic, upKeys, upPath, writeUserPublicRelease)
+import qualified Pos.Util.UserPublic as UP
 import           Pos.Util.UserSecret (UserSecret, getUSPath, isEmptyUserSecret,
                      readUserSecret, takeUserSecret, usKeys, usWallet,
                      writeUserSecretRelease, _wusRootKey)
-import qualified Pos.Util.UserPublic as UP
 import qualified Pos.Util.UserSecret as US
 import           Pos.Util.Wlog (CanLog (..), HasLoggerName (..), logMessage)
 

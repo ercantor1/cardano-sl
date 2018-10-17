@@ -52,6 +52,13 @@ data CreateAddressError =
     | CreateAddressHdRndAddressSpaceSaturated HdAccountId
       -- ^ The available number of HD addresses in use in such that trying
       -- to find another random index would be too expensive
+    | CreateAddressUnableForExternalWallet AccountId
+      -- ^ Currently it is impossible to create a new address for external
+      -- wallet because we need root secret key for it (and this key is
+      -- stored externally, for example, in the memory of Ledger device).
+      -- Please note that in the future implementations it /will/ be possible
+      -- to derive new addresses using extended public key (i.e. without root
+      -- secret key).
     deriving Eq
 
 instance Arbitrary CreateAddressError where
@@ -66,6 +73,8 @@ instance Buildable CreateAddressError where
         bprint ("CreateAddressHdRndGenerationFailed " % F.build) hdAcc
     build (CreateAddressHdRndAddressSpaceSaturated hdAcc) =
         bprint ("CreateAddressHdRndAddressSpaceSaturated " % F.build) hdAcc
+    build (CreateAddressUnableForExternalWallet accId) =
+        bprint ("CreateAddressUnableForExternalWallet " % F.build) accId
 
 instance Show CreateAddressError where
     show = formatToString build
@@ -102,10 +111,10 @@ createAddress spendingPassword accId pw = do
              case mbKey of
                   Nothing ->
                       return (Left $ CreateAddressKeystoreNotFound accId)
+                  Just (Keystore.ExternalWalletKey _pk) ->
+                      return (Left $ CreateAddressUnableForExternalWallet accId)
                   Just (Keystore.RegularWalletKey esk) ->
                       createHdRndAddress spendingPassword esk hdAccId pw
-                  Just (Keystore.ExternalWalletKey _pk) ->
-                      error "TODO" 
 
 -- | Creates a new 'Address' using the random HD derivation under the hood.
 -- Being this an operation bound not only by the number of available derivation

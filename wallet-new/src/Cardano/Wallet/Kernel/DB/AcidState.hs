@@ -24,6 +24,7 @@ module Cardano.Wallet.Kernel.DB.AcidState (
   , CreateHdWallet(..)
   , CreateExternalHdWallet(..)
   , RestoreHdWallet(..)
+  , RestoreExternalHdWallet(..)
   , CreateHdAccount(..)
   , CreateHdAddress(..)
     -- *** UPDATE
@@ -568,7 +569,7 @@ createExternalHdWallet newRoot defaultHdAccountId utxoByAccount =
     insertDefault m = case Map.lookup defaultHdAccountId m of
         Just _  -> m
         Nothing ->
-            -- Completely new account, without addresses (yet). 
+            -- Completely new account, without addresses (yet).
             Map.insert defaultHdAccountId (mempty, []) m
 
 -- | Begin restoration by creating an HdWallet with the given HdRoot,
@@ -618,6 +619,47 @@ restoreHdWallet newRoot defaultHdAccountId defaultHdAddress ctx utxoByAccount =
                    Map.insert defaultHdAccountId (utxo, utxo', defaultAddr : addrs) m
                Nothing ->
                    Map.insert defaultHdAccountId (mempty, mempty, [defaultAddr]) m
+
+-- | Begin restoration by creating an HdWallet with the given HdRoot,
+-- starting from the 'HdAccountOutsideK' state.
+--
+-- INVARIANT: Creating a new wallet always come with a fresh HdAccount and
+-- a fresh 'HdAddress' attached to it, so we have to pass these two extra
+-- piece of into to the update function. We do @not@ build these inside the
+-- update function because derivation requires an 'EncryptedSecretKey' and
+-- definitely we do not want it to show up in our acid-state logs.
+--
+restoreExternalHdWallet :: HdRoot
+                        -> HdAccountId
+                        -- ^ The default HdAccountId to go with this HdRoot. This
+                        -- function will take responsibility of creating the associated
+                        -- 'HdAccount'.
+                        -> BlockContext
+                        -- ^ The initial block context for restorations
+                        -> Map HdAccountId (Utxo, Utxo, [AddrWithId])
+                        -- ^ Current and genesis UTxO per account
+                        -> Update DB (Either HD.CreateHdRootError ())
+restoreExternalHdWallet newRoot defaultHdAccountId ctx utxoByAccount =
+    runUpdateDiscardSnapshot . zoom dbHdWallets $ do
+        HD.createHdRoot newRoot
+        updateAccounts_ $ map mkUpdate (Map.toList (insertDefault utxoByAccount))
+  where
+    mkUpdate :: (HdAccountId, (Utxo, Utxo, [AddrWithId]))
+             -> AccountUpdate HD.CreateHdRootError ()
+    mkUpdate (accId, (curUtxo, genUtxo, addrs)) = AccountUpdate {
+          accountUpdateId    = accId
+        , accountUpdateNew   = AccountUpdateNewIncomplete curUtxo genUtxo ctx
+        , accountUpdateAddrs = addrs
+        , accountUpdate      = return () -- Create it only
+        }
+
+    insertDefault :: Map HdAccountId (Utxo, Utxo, [AddrWithId])
+                  -> Map HdAccountId (Utxo, Utxo, [AddrWithId])
+    insertDefault m = case Map.lookup defaultHdAccountId m of
+        Just _ -> m
+        Nothing ->
+            -- Completely new account, without addresses (yet).
+            Map.insert defaultHdAccountId (mempty, mempty, []) m
 
 {-------------------------------------------------------------------------------
   Internal: support for updating accounts
@@ -871,6 +913,7 @@ makeAcidic ''DB [
     , 'resetAllHdWalletAccounts
     , 'clearDB
     , 'restoreHdWallet
+    , 'restoreExternalHdWallet
       -- Software updates
     , 'addUpdate
     , 'removeNextUpdate

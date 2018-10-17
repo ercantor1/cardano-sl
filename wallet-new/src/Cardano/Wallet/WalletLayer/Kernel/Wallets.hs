@@ -41,7 +41,7 @@ import           Cardano.Wallet.Kernel.PrefilterTx (PrefilteredBlock,
                      prefilterBlock)
 import qualified Cardano.Wallet.Kernel.Read as Kernel
 import           Cardano.Wallet.Kernel.Restore (blundToResolvedBlock,
-                     restoreWallet)
+                     restoreExternalWallet, restoreWallet)
 import           Cardano.Wallet.Kernel.Types (WalletId (..))
 import           Cardano.Wallet.Kernel.Util.Core (getCurrentTimestamp)
 import qualified Cardano.Wallet.Kernel.Wallets as Kernel
@@ -112,7 +112,27 @@ createWallet wallet newWalletRequest = liftIO $ do
     restoreExternal :: V1.NewExternalWallet
                     -> Timestamp
                     -> IO (Either CreateWalletError V1.Wallet)
-    restoreExternal = error "TODO"
+    restoreExternal V1.NewExternalWallet{..} now = runExceptT $ do
+        rootPK <- withExceptT CreateWalletInvalidRootPK $ ExceptT $
+            pure $ V1.mkPublicKeyFromBase58 newewalRootPK
+
+        let rootId = HD.pkToHdRootId rootPK
+            wId    = WalletIdHdRnd rootId
+            walletUserKey = Keystore.ExternalWalletKey rootPK
+        -- Insert the key into the 'Keystore'
+        liftIO $ Keystore.insert walletUserKey (wallet ^. walletKeystore)
+
+        -- Synchronously restore the wallet balance, and begin to
+        -- asynchronously reconstruct the wallet's history.
+        (root, coins) <- withExceptT (CreateWalletError . Kernel.CreateWalletFailed) $ ExceptT $
+            restoreExternalWallet wallet
+                                  (HD.WalletName newewalName)
+                                  (fromAssuranceLevel newewalAssuranceLevel)
+                                  walletUserKey
+
+        -- Return the wallet information, with an updated balance.
+        let root' = mkRoot newewalName newewalAssuranceLevel now root
+        updateSyncState wallet wId (root' { V1.walBalance = V1 coins })
 
     restoreFromESK :: EncryptedSecretKey
                    -> PassPhrase
@@ -143,7 +163,7 @@ createWallet wallet newWalletRequest = liftIO $ do
                       (hdAddress ^. HD.hdAddressAddress . fromDb)
                       (HD.WalletName walletName)
                       hdAssuranceLevel
-                      esk
+                      (Keystore.RegularWalletKey esk)
 
                 -- Return the wallet information, with an updated balance.
                 let root' = mkRoot walletName (toAssuranceLevel hdAssuranceLevel) now root
@@ -184,7 +204,7 @@ prefilter :: EncryptedSecretKey
 prefilter esk wallet wId blund =
     blundToResolvedBlock (wallet ^. Kernel.walletNode) blund <&> \case
         Nothing -> (Map.empty, [])
-        Just rb -> prefilterBlock rb wId esk
+        Just rb -> prefilterBlock rb wId (Keystore.RegularWalletKey esk)
 
 -- | Updates the 'SpendingPassword' for this wallet.
 updateWallet :: MonadIO m
