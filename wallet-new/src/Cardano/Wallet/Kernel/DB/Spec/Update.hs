@@ -197,7 +197,7 @@ applyBlock (SecurityParameter k) pb = do
         (utxo', balance') = updateUtxo      pb (utxo, balance)
         (pending', rem1)  = updatePending   pb (current ^. checkpointPending)
         blockMeta'        = updateBlockMeta pb (current ^. checkpointBlockMeta)
-        (foreign', rem2)  = updateForeign   pb (current ^. checkpointForeign)
+        (foreign', rem2)  = updatePending   pb (current ^. checkpointPending)
     if (pfbContext pb) `blockContextSucceeds` (current ^. checkpointContext . lazy) then do
       put $ Checkpoints . takeNewest k . NewestFirst $ Checkpoint {
           _checkpointUtxo        = InDb utxo'
@@ -360,15 +360,6 @@ updateUtxo PrefilteredBlock{..} (utxo, balance) =
 -- Returns the set of transactions that got removed from the pending set.
 updatePending :: PrefilteredBlock -> Pending -> (Pending, Set Txp.TxId)
 updatePending PrefilteredBlock{..} = Pending.removeInputs pfbInputs
-
--- | Update the foreign transactions with the given prefiltered block
---
--- Returns the set of transactions that got removed from the pending set.
--- Note that this is slightly different from pending transactions as it doesn't
--- filter on the "inputs" (which aren't part of the wallet for Foreign
--- transactions) but filter out based on the outputs.
-updateForeign :: PrefilteredBlock -> Pending -> (Pending, Set Txp.TxId)
-updateForeign PrefilteredBlock{..} = Pending.removeForeign pfbOutputs
 
 takeNewest :: Int -> NewestFirst StrictNonEmpty a -> NewestFirst StrictNonEmpty a
 takeNewest = liftNewestFirst . SNE.take

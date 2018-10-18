@@ -164,13 +164,56 @@ prefilterTx wKey tx = ((prefInps',prefOuts'),metas)
 --
 -- NOTE: we can rely on a Monoidal fold here to combine the maps
 -- 'Map HdAccountId a' since the accounts will be unique accross wallet keys.
+--
+-- In order to use the same updatePending for transactions originating from both inside- and outside-wallet
+-- the following change was adopted.
+-- The idea is to put foreign transaction in the inputs of the prefiltered block. To accomplish that and stay
+-- valid in terms of utxo accounting we adopt the following scheme:
+-- 1. We work on already validated result of prefilterTx for each wallet involved
+-- 2. Then we try to identify the foreign transaction by looking initially at the outputs of the result
+-- 3. If the foreign transaction is identified in the outputs then we relocate it to the inputs under HdAccountId that was beneficiary in the output
+-- 4. In order not to double the balance we remove the corresponding transaction from outputs
 prefilterTxForWallets :: [WalletKey]
                       -> ResolvedTx
                       -> ((Map HdAccountId (Set TxIn)
                          , Map HdAccountId UtxoSummaryRaw)
                          , [TxMeta])
 prefilterTxForWallets wKeys tx =
-    mconcat $ map ((flip prefilterTx) tx) wKeys
+    (updatedInputsOutputs,meta)
+  where
+    ((inputs,outputs),meta) = mconcat $ map ((flip prefilterTx) tx) wKeys
+    allTxInsInResolvedTx :: Set TxIn
+    allTxInsInResolvedTx = Set.fromList $ map fst $ toList (tx ^. rtxInputs  . fromDb)
+    allTxInsPrefiltered :: Set TxIn
+    allTxInsPrefiltered = Set.unions $ Map.elems inputs
+    externalTxIn :: Maybe TxIn
+    externalTxIn = case Set.elems $ Set.difference allTxInsPrefiltered allTxInsInResolvedTx of
+        (val : _ ) -> Just val
+        _          -> Nothing
+    hdAccountIdBenefited :: Maybe HdAccountId
+    hdAccountIdBenefited = case externalTxIn of
+        Just val -> Just hdAccId
+            where (hdAccId : _) = Map.keys $ Map.filter (\utxoSumm -> elem val $ Map.keys utxoSumm) outputs
+        Nothing -> Nothing
+    updatedInputsOutputs :: (Map HdAccountId (Set TxIn),Map HdAccountId UtxoSummaryRaw)
+    updatedInputsOutputs = case (hdAccountIdBenefited, externalTxIn) of
+        (Just hdAccId, Just extTxIn) ->
+            case inputs Map.!? hdAccId of
+                Just currentSet ->
+                    ( Map.alter (\_ -> Just (Set.insert extTxIn currentSet)) hdAccId inputs ,
+                      updateOutputs outputs hdAccId extTxIn )
+                Nothing ->
+                     ( Map.insert hdAccId (Set.singleton extTxIn) inputs ,
+                      updateOutputs outputs hdAccId extTxIn )
+        _ -> (inputs, outputs)
+    updateOutputs :: Map HdAccountId UtxoSummaryRaw
+                  -> HdAccountId
+                  -> TxIn
+                  -> Map HdAccountId UtxoSummaryRaw
+    updateOutputs outs hdAccId txInToBeRemoved =
+        case outs Map.!? hdAccId of
+            Just utxoSumm -> Map.alter (\_ -> Just (Map.delete txInToBeRemoved utxoSumm)) hdAccId outs
+            Nothing -> outs
 
 -- | Prefilter inputs of a transaction
 prefilterInputs :: WalletKey
