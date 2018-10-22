@@ -38,18 +38,11 @@ handlersPlain :: Genesis.Config
          -> TxpConfiguration
          -> (TxAux -> MonadV1 Bool)
          -> ServerT WIP.API MonadV1
-handlersPlain genesisConfig txpConfig submitTx = checkExternalWallet genesisConfig
-    :<|> newExternalWallet genesisConfig
+handlersPlain genesisConfig txpConfig submitTx =
+         newExternalWallet genesisConfig
     :<|> deleteExternalWallet
     :<|> newUnsignedTransaction
     :<|> newSignedTransaction txpConfig submitTx
-
-checkExternalWallet
-    :: Genesis.Config
-    -> PublicKeyAsBase58
-    -> m (WalletResponse WalletAndTxHistory)
-checkExternalWallet _ _ =
-    error "Removed as an obsolete handler, please see API/WIP/Handlers"
 
 newExternalWallet
     :: Genesis.Config
