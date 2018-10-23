@@ -11,7 +11,8 @@ import           Test.Hspec
 import           Test.QuickCheck.Monadic (PropertyM, run)
 import           Text.Show.Pretty (ppShow)
 
-import           Util
+import           Util hiding (makePayment)
+import qualified Util
 
 import qualified Data.Map.Strict as Map
 import qualified Pos.Chain.Txp as Txp
@@ -232,25 +233,8 @@ transactionSpecs wRef wc = beforeAll_ (setupLogging "wallet-new_transactionSpecs
             liftIO $ utxoStatistics `shouldBe` utxoStatisticsExpected
 
   where
-    makePayment
-        :: Core.Coin
-        -> (Wallet, Account)
-        -> Core.Address
-        -> IO (Either ClientError Transaction)
-    makePayment amount (sourceW, sourceA) destination = do
-        let payment = Payment
-                { pmtSource = PaymentSource
-                    { psWalletId     = walId sourceW
-                    , psAccountIndex = accIndex sourceA
-                    }
-                , pmtDestinations = pure PaymentDistribution
-                    { pdAddress = V1 destination
-                    , pdAmount  = V1 amount
-                    }
-                , pmtGroupingPolicy   = Nothing
-                , pmtSpendingPassword = Nothing
-                }
-        fmap (fmap wrData) $ postTransaction wc payment
+    makePayment amount (sourceW, sourceA) destination
+       = fmap (fmap wrData) $ Util.makePayment wc amount (sourceW, sourceA) destination
 
     getRandomAddress
         :: IO Core.Address
